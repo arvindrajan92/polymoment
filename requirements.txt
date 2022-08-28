@@ -1,0 +1,2 @@
+pydantic==1.9.2
+sympy==1.11
