@@ -1,13 +1,14 @@
 from pydantic import BaseModel, validator
-    
+from typing import Union
+
     
 class PolyVar(BaseModel):
     distribution: str
     type: str
-    translation: float
-    scale: float
-    beta1: float = None
-    beta2: float = None
+    translation: Union[float, str]
+    scale: Union[float, str]
+    beta1: Union[float, str] = None
+    beta2: Union[float, str] = None
 
     @validator('distribution')
     def distribution_must_be_supported(cls, v):
@@ -31,8 +32,7 @@ class PolyVar(BaseModel):
         if v.lower() not in [
             'symmetrical',
             'one_sided_right',
-            'one_sided_left',
-            'asymmetrical'
+            'one_sided_left'
         ]:
             raise ValueError(f'Distribution type {v} is not supported')
         return v
