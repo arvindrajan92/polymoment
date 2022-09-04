@@ -30,9 +30,22 @@ class PolyMoment:
         std = sympy.sqrt(self.variance())
         return sympy.simplify(std)
 
-    def variance(self):
+    def var(self):
         var = self.moment(order=2) - (self.moment(order=1) ** 2)
         return sympy.simplify(var)
+
+    def skew(self):
+        mean = self.mean()
+        var = self.var()
+        skew = (self.moment(order=3) - (3 * mean * var) - (mean ** 3)) / (sympy.sqrt(var) ** 3)
+        return sympy.simplify(skew)
+
+    def kurt(self):
+        mean = self.mean()
+        var = self.var()
+        c_mom4 = -3 * mean ** 4 + 6 * mean ** 2 * self.moment(order=2) - 4 * mean * self.moment(order=3) + self.moment(order=4)
+        kurt = c_mom4 / (self.var() ** 2)
+        return sympy.simplify(kurt)
 
     def mean(self):
         mu = self.moment(order=1)
@@ -55,13 +68,6 @@ class PolyMoment:
                 if m == 0:
                     eval_monom_temp.append(1)
                     continue
-
-                # check the feasibility of analytic expansion
-                if (isinstance(gens[m_index], sympy.Pow) or m % 1 != 0) and self.dist.get(f'x{m_index}').translation != 0.0:
-                    raise ValueError(
-                        f'Error at evaluating moment of {list(self.dist.keys())[m_index]}. No known finite expression '
-                        f'for this type of distribution '
-                    )
 
                 # E value of random variable in monomial
                 eval_monom_temp.append(self.compute_eval(v=gens[m_index], m=m))
@@ -87,82 +93,100 @@ class PolyMoment:
         v_params = self.dist[list(v.free_symbols)[0].name]
         v_symbol = self.__dict__[list(v.free_symbols)[0].name]
 
-        # binomial expansion making v a random variable with standard distribution
-        v_temp = sympy.poly(v_params.translation + v_symbol, v_symbol) ** m
+        if not isinstance(v, sympy.Pow):
+            # check the feasibility of analytic expansion
+            if m % 1 != 0:
+                raise ValueError(
+                    f'Error at evaluating moment of {list(v.free_symbols)[0].name}. No known finite expression for this type of distribution '
+                )
 
-        # get coefficients and monomials
-        v_coeffs = v_temp.coeffs()
-        v_monoms = v_temp.all_monoms()
+            # binomial expansion making v a random variable with standard distribution
+            v_temp = sympy.poly(v_params.translation + v_symbol, v_symbol) ** m
 
-        evms = []
-        for v_monom in v_monoms:
-            v_monom = v_monom[0]
+            # get coefficients and monomials
+            v_coeffs = v_temp.coeffs()
+            v_monoms = v_temp.all_monoms()
+
+            evms = []
+            for v_monom in v_monoms:
+                v_monom = v_monom[0]
+                if v_params.distribution in ['uniform', 'uni']:
+                    evm_temp = (v_params.scale ** v_monom) / ((v_monom + 1) * 2)
+                elif v_params.distribution in ['lognormal', 'logn']:
+                    evm_temp = sympy.exp(((v_monom ** 2) * (v_params.scale ** 2)) / 2)
+                elif v_params.distribution in ['trapezoidal', 'tra']:
+                    evm_temp = (v_params.scale ** v_monom) / (v_monom ** 2 + (3 * v_monom) + 2) * \
+                               ((1 - (v_params.beta1 ** (v_monom + 2))) / (1 - (v_params.beta1 ** 2)))
+                elif v_params.distribution in ['triangular', 'tri']:
+                    evm_temp = (v_params.scale ** v_monom) / (v_monom ** 2 + (3 * v_monom) + 2)
+                elif v_params.distribution in ['beta', 'bet']:
+                    evm_temp = (v_params.scale ** v_monom) / 2
+                    for ptm in range(v_monom):
+                        evm_temp = evm_temp * (v_params.beta1 + (ptm + 1) - 1) / \
+                                   (v_params.beta1 + v_params.beta2 + (ptm + 1) - 1)
+                elif v_params.distribution in ['normal', 'nor']:
+                    if v_monom % 2 == 0:
+                        # when v_monom is even
+                        evm_temp = (v_params.scale ** v_monom) * sympy.factorial2(v_monom - 1) / 2
+                    else:
+                        # when v_monom is odd
+                        evm_temp = (v_params.scale ** v_monom) * (2 ** ((v_monom / 2) - 1) * sympy.factorial((v_monom - 1) / 2)) \
+                                   / sympy.sqrt(sympy.pi)
+                elif v_params.distribution in ['student', 'stu']:
+                    evm_temp = (v_params.scale ** v_monom) * \
+                               (v_params.beta1 ** (v_monom / 2) * sympy.gamma((v_monom + 1) / 2) * sympy.gamma((v_params.beta1 - v_monom) / 2)) / \
+                               (2 * sympy.sqrt(sympy.pi) * sympy.gamma(v_params.beta1 / 2))
+                elif v_params.distribution in ['laplace', 'lap']:
+                    evm_temp = (v_params.scale ** v_monom) * sympy.factorial(v_monom) / 2
+                elif v_params.distribution in ['gamma', 'gam']:
+                    evm_temp = (v_params.scale ** v_monom) / 2
+                    for ptm in range(v_monom):
+                        evm_temp = evm_temp * (v_params.beta1 + (ptm + 1) - 1)
+                elif v_params.distribution in ['weibull', 'wei']:
+                    evm_temp = (v_params.scale ** v_monom) * (sympy.gamma((v_monom / v_params.beta1) + 1)) / 2
+                elif v_params.distribution in ['rayleigh', 'ray']:
+                    evm_temp = (v_params.scale ** v_monom) * (2 ** ((v_monom / 2) - 1)) * sympy.gamma((2 + v_monom) / 2)
+                elif v_params.distribution in ['maxwell', 'max']:
+                    if v_monom % 2 == 0:
+                        # when v_monom is even
+                        evm_temp = (v_params.scale ** v_monom) * sympy.factorial2(v_monom + 1)
+                    else:
+                        # when v_monom is odd
+                        evm_temp = (v_params.scale ** v_monom) * (2 ** ((v_monom / 2) + 1) / sympy.sqrt(sympy.pi)) * \
+                                   sympy.factorial((v_monom + 1) / 2)
+                else:
+                    raise ValueError('Unknown distribution type')
+
+                # adjust moment according to symmetry
+                # TODO: Add support for asymmetrical distribution
+                if v_params.type == 'symmetrical':
+                    evm_temp = 2 * evm_temp if v_monom % 2 == 0 else 0
+                elif v_params.type == 'one_sided_right':
+                    evm_temp = 2 * evm_temp
+                elif v_params.type == 'one_sided_left':
+                    evm_temp = ((-1) ** evm_temp) * 2 * evm_temp
+                else:
+                    raise ValueError('Unknown symmetry type')
+
+                evms.append(evm_temp)
+
+            # element-wise multiplication
+            res = 0
+            for evm, v_coeff in zip(evms, v_coeffs):
+                res = res + evm * v_coeff
+
+            return res
+        else:
+            m, mu, scale = m * v.exp, v_params.translation, v_params.scale
             if v_params.distribution in ['uniform', 'uni']:
-                evm_temp = (v_params.scale ** v_monom) / ((v_monom + 1) * 2)
+                if m == -1:
+                    return sympy.log((mu + scale) / (mu - scale)) / (2 * scale)
+                else:
+                    return ((mu + scale) ** (m + 1) - (mu - scale) ** (m + 1)) / (2 * scale * (m + 1))
             elif v_params.distribution in ['lognormal', 'logn']:
-                evm_temp = sympy.exp(((v_monom ** 2) * (v_params.scale ** 2)) / 2)
-            elif v_params.distribution in ['trapezoidal', 'tra']:
-                evm_temp = (v_params.scale ** v_monom) / (v_monom ** 2 + 3 * v_monom + 2) * \
-                           ((1 - (v_params.beta1 ** (v_monom + 2))) / (1 - (v_params.beta1 ** 2)))
-            elif v_params.distribution in ['triangular', 'tri']:
-                evm_temp = (v_params.scale ** v_monom) / (v_monom ** 2 + 3 * v_monom + 2)
-            elif v_params.distribution in ['beta', 'bet']:
-                evm_temp = (v_params.scale ** v_monom) / 2
-                for ptm in range(v_monom):
-                    evm_temp = evm_temp * (v_params.beta1 * (ptm + 1) - 1) / \
-                               (v_params.beta1 + v_params.beta2 + (ptm + 1) - 1)
-            elif v_params.distribution in ['normal', 'nor']:
-                if v_monom % 2 == 0:
-                    # when v_monom is even
-                    evm_temp = (v_params.scale ** v_monom) * sympy.factorial2(v_monom - 1) / 2
-                else:
-                    # when v_monom is odd
-                    evm_temp = (v_params.scale ** v_monom) * (2 ** ((v_monom / 2) - 1) * sympy.factorial((v_monom - 1) / 2)) \
-                               / sympy.sqrt(sympy.pi)
-            elif v_params.distribution in ['student', 'stu']:
-                evm_temp = (v_params.scale ** v_monom) * \
-                           (v_params.beta1 ** (v_monom / 2) * sympy.gamma((v_monom + 1) / 2) * sympy.gamma((v_params.beta1 - v_monom) / 2)) / \
-                           (2 * sympy.sqrt(sympy.pi) * sympy.gamma(v_params.beta1 / 2))
-            elif v_params.distribution in ['laplace', 'lap']:
-                evm_temp = (v_params.scale ** v_monom) * sympy.factorial(v_monom) / 2
-            elif v_params.distribution in ['gamma', 'gam']:
-                evm_temp = (v_params.scale ** v_monom) / 2
-                for ptm in range(v_monom):
-                    evm_temp = evm_temp * (v_params.beta1 * (ptm + 1) - 1)
-            elif v_params.distribution in ['weibull', 'wei']:
-                evm_temp = (v_params.scale ** v_monom) * (v_params.beta1 * sympy.gamma((v_monom / v_params.beta1) + 1)) / 2
-            elif v_params.distribution in ['rayleigh', 'ray']:
-                evm_temp = (v_params.scale ** v_monom) * (2 ** ((v_monom / 2) - 1)) * sympy.gamma((2 + v_monom) / 2)
-            elif v_params.distribution in ['maxwell', 'max']:
-                if v_monom % 2 == 0:
-                    # when v_monom is even
-                    evm_temp = (v_params.scale ** v_monom) * sympy.factorial2(v_monom + 1)
-                else:
-                    # when v_monom is odd
-                    evm_temp = (v_params.scale ** v_monom) * (2 ** ((v_monom / 2) + 1) / sympy.sqrt(sympy.pi)) * \
-                               sympy.factorial((v_monom + 1) / 2)
+                return sympy.exp((mu * m) + (m ** 2 * scale ** 2 / 2))
             else:
                 raise ValueError('Unknown distribution type')
-
-            # adjust moment according to symmetry
-            # TODO: Add support for asymmetry distribution
-            if v_params.type == 'symmetrical':
-                evm_temp = 2 * evm_temp if v_monom % 2 == 0 else 0
-            elif v_params.type == 'one_sided_right':
-                evm_temp = 2 * evm_temp
-            elif v_params.type == 'one_sided_left':
-                evm_temp = ((-1) ** evm_temp) * 2 * evm_temp
-            else:
-                raise ValueError('Unknown symmetry type')
-
-            evms.append(evm_temp)
-
-        # element-wise multiplication
-        res = 0
-        for evm, v_coeff in zip(evms, v_coeffs):
-            res = res + evm * v_coeff
-
-        return res
 
 
 if __name__ == '__main__':
@@ -192,4 +216,17 @@ if __name__ == '__main__':
         }
     )
 
-    print(polymoment.moment(order=2))
+    polymoment = PolyMoment(
+        poly='x0 ** -2',
+        x='x0',
+        dist={
+            'x0': {
+                'distribution': 'uniform',
+                'type': 'symmetrical',
+                'translation': 'm0',
+                'scale': 's0',
+            }
+        }
+    )
+
+    print(polymoment.mean())
