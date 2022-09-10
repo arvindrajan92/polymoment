@@ -6,6 +6,8 @@ This is the implementation of the thesis: [Moment-Based Uncertainty Propagation 
 
 The example below demonstrates how `PolyMoment` can be used to compute the high-order moment, mean, variance, standard deviation, skewness, or kurtosis of polynomial `x0^2+x1^2` with random variables `x0` and `x1` following normal distribution with means `m0` and `m1`, respectively, and standard deviations `s0` and `s1`, respectively.
 
+The supported distributions and their respective probability density functions can be found in [this file](ProbabilityDensityFunction.pdf).
+
 ```python
 from polymoment import PolyMoment
 
