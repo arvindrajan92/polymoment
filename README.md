@@ -63,6 +63,8 @@ print(pm.moment(order=1))
 
 ## Supported Distributions
 
+Further information on the probability density functions listed below can be found in [this file](https://github.com/arvindrajan92/polymoment/blob/master/ProbabilityDensityFunction.pdf).
+
 ```python
 'uniform',
 'trapezoidal',
