@@ -1,7 +1,9 @@
+import sympy
+
 from pydantic import BaseModel, validator
 from typing import Union
 
-    
+
 class PolyVar(BaseModel):
     distribution: str
     type: str
@@ -9,6 +11,18 @@ class PolyVar(BaseModel):
     scale: Union[float, str]
     beta1: Union[float, str] = None
     beta2: Union[float, str] = None
+
+    @validator('translation', 'scale', 'beta1', 'beta2')
+    def sympy_var(cls, v):
+        if v is None:
+            return v
+
+        if isinstance(v, str):
+            return sympy.symbols(v)
+        elif isinstance(v, float):
+            return v
+        else:
+            raise ValueError(f'Unknown type for value {v}')
 
     @validator('distribution')
     def distribution_must_be_supported(cls, v):

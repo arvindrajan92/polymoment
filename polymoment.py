@@ -12,46 +12,40 @@ class PolyMoment:
         self.poly = sympy.poly(eval(poly.replace('x', 'self.x')))
         self.dist = {k: PolyVar(**v) for k, v in dist.items()}
 
-        # convert translations, scales, betas, and weights to type symbol if provided in string
-        for k, v in self.dist.items():
-            if isinstance(v.translation, str):
-                v.translation = sympy.symbols(v.translation)
-            if isinstance(v.scale, str):
-                v.scale = sympy.symbols(v.scale)
-            if v.beta1 and isinstance(v.beta1, str):
-                v.beta1 = sympy.symbols(v.beta1)
-            if v.beta2 and isinstance(v.beta2, str):
-                v.beta2 = sympy.symbols(v.beta2)
-
     def __call__(self, *args, **kwargs):
         return self.moment(*args, **kwargs)
 
     def std(self):
-        std = sympy.sqrt(self.variance())
+        """Calculates standard deviation of self.poly"""
+        std = sympy.sqrt(self.var())
         return sympy.simplify(std)
 
     def var(self):
+        """Calculates variance of self.poly"""
         var = self.moment(order=2) - (self.moment(order=1) ** 2)
         return sympy.simplify(var)
 
     def skew(self):
+        """Calculates skewness of self.poly"""
         mean = self.mean()
         var = self.var()
         skew = (self.moment(order=3) - (3 * mean * var) - (mean ** 3)) / (sympy.sqrt(var) ** 3)
         return sympy.simplify(skew)
 
     def kurt(self):
-        mean = self.mean()
-        var = self.var()
-        c_mom4 = -3 * mean ** 4 + 6 * mean ** 2 * self.moment(order=2) - 4 * mean * self.moment(order=3) + self.moment(order=4)
-        kurt = c_mom4 / (self.var() ** 2)
+        """Calculates kurtosis (excess kurtosis + 3) of self.poly"""
+        e1, e2, e3, e4 = self.moment(order=1), self.moment(order=2), self.moment(order=3), self.moment(order=4)
+        c_mom4 = -3 * e1 ** 4 + 6 * e1 ** 2 * e2 - 4 * e1 * e3 + e4
+        kurt = c_mom4 / ((e2 - (e1 ** 2)) ** 2)
         return sympy.simplify(kurt)
 
     def mean(self):
+        """Calculates mean of self.poly"""
         mu = self.moment(order=1)
         return sympy.simplify(mu)
 
     def moment(self, order: int):
+        """Calculates the expectation of self.poly raised to the power of order"""
         # expand polynomial for moment order
         p = self.poly ** order
 
@@ -97,7 +91,8 @@ class PolyMoment:
             # check the feasibility of analytic expansion
             if m % 1 != 0:
                 raise ValueError(
-                    f'Error at evaluating moment of {list(v.free_symbols)[0].name}. No known finite expression for this type of distribution '
+                    f'Error at evaluating moment of {list(v.free_symbols)[0].name}. No known finite expression for '
+                    f'this type of distribution '
                 )
 
             # binomial expansion making v a random variable with standard distribution
@@ -187,46 +182,3 @@ class PolyMoment:
                 return sympy.exp((mu * m) + (m ** 2 * scale ** 2 / 2))
             else:
                 raise ValueError('Unknown distribution type')
-
-
-if __name__ == '__main__':
-    polymoment = PolyMoment(
-        poly='x0**(2)+x1**2',
-        # x='x0,x1,x2',
-        x='x0,x1',
-        dist={
-            'x0': {
-                'distribution': 'normal',
-                'type': 'symmetrical',
-                'translation': 'm0',
-                'scale': 's0',
-            },
-            'x1': {
-                'distribution': 'normal',
-                'type': 'symmetrical',
-                'translation': 'm1',
-                'scale': 's1',
-            },
-            # 'x2': {
-            #     'distribution': 'normal',
-            #     'type': 'symmetrical',
-            #     'translation': 0,
-            #     'scale': 0,
-            # }
-        }
-    )
-
-    polymoment = PolyMoment(
-        poly='x0 ** -2',
-        x='x0',
-        dist={
-            'x0': {
-                'distribution': 'uniform',
-                'type': 'symmetrical',
-                'translation': 'm0',
-                'scale': 's0',
-            }
-        }
-    )
-
-    print(polymoment.mean())
