@@ -48,7 +48,7 @@ print(pm.skew())
 print(pm.kurt())
 
 # n-th order moment of poly
-print(pm.mean())
+print(pm.moment(order=1))
 ```
 
 ## Supported Distribution Types
