@@ -6,8 +6,8 @@ from polyvar import PolyVar
 
 
 class PolyMoment:
-    def __init__(self, poly: str, x: str, dist: Dict):
-        for key in x.replace(' ', '').split(','):
+    def __init__(self, poly: str, dist: Dict):
+        for key in dist.keys():
             self.__dict__[key] = sympy.symbols(key)
         self.poly = sympy.poly(eval(poly.replace('x', 'self.x')))
         self.dist = {k: PolyVar(**v) for k, v in dist.items()}

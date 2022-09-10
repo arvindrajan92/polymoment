@@ -13,7 +13,6 @@ from polymoment import PolyMoment
 
 pm = PolyMoment(
     poly='x0**2+x1**2',
-    x='x0,x1',
     dist={
         'x0': {
             'distribution': 'normal',	# str

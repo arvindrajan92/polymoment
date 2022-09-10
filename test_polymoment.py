@@ -5,7 +5,6 @@ def test_gaussian_distribution():
     """Test Gaussian distribution"""
     polymoment = PolyMoment(
         poly='x0',
-        x='x0',
         dist={
             'x0': {
                 'distribution': 'normal',
@@ -27,7 +26,6 @@ def test_laplace_distribution():
     """Test Laplace distribution"""
     polymoment = PolyMoment(
         poly='x0',
-        x='x0',
         dist={
             'x0': {
                 'distribution': 'laplace',
@@ -49,7 +47,6 @@ def test_weibull_distribution():
     """Test Weibull distribution"""
     polymoment = PolyMoment(
         poly='x0',
-        x='x0',
         dist={
             'x0': {
                 'distribution': 'weibull',
@@ -76,7 +73,6 @@ def test_uniform_distribution():
     """Test uniform distribution"""
     polymoment = PolyMoment(
         poly='x0',
-        x='x0',
         dist={
             'x0': {
                 'distribution': 'uniform',
@@ -98,7 +94,6 @@ def test_gamma_distribution():
     """Test gamma distribution"""
     polymoment = PolyMoment(
         poly='x0',
-        x='x0',
         dist={
             'x0': {
                 'distribution': 'gamma',
