@@ -1,5 +1,3 @@
-import ray
-from ray import serve
 from fastapi import FastAPI
 
 from polymoment import PolyMoment
@@ -15,9 +13,8 @@ app = FastAPI(
 polymoment_handle = None
 
 
-@serve.deployment(num_replicas=4)
 class PolymomentDeployment:
-    async def __call__(self, request: dict, method: str) -> dict:
+    async def remote(self, request: dict, method: str) -> dict:
         polymoment = PolyMoment(poly=request.get('poly'), dist=request.get('dist'))
         if method == 'moment':
             return {'result': polymoment.moment(order=request.get('order')).__str__()}
@@ -37,38 +34,40 @@ class PolymomentDeployment:
 
 @app.on_event("startup")
 async def startup_event():
-    ray.init(include_dashboard=False)
-    _ = serve.start(http_options=None)
-
     global polymoment_handle
-    polymoment_handle = serve.run(PolymomentDeployment.bind())
+    polymoment_handle = PolymomentDeployment()
+
+
+@app.get("/")
+async def get_moment():
+    return {'status': 'ok'}
 
 
 @app.post("/moment/", response_model=ResponseModel)
-async def get_moment(request: RequestModel):
+async def moment(request: RequestModel):
     return await polymoment_handle.remote(request=request.dict(), method='moment')
 
 
 @app.post("/mean/", response_model=ResponseModel)
-async def get_moment(request: RequestModel):
+async def mean(request: RequestModel):
     return await polymoment_handle.remote(request=request.dict(), method='mean')
 
 
 @app.post("/std/", response_model=ResponseModel)
-async def get_moment(request: RequestModel):
+async def std(request: RequestModel):
     return await polymoment_handle.remote(request=request.dict(), method='std')
 
 
 @app.post("/var/", response_model=ResponseModel)
-async def get_moment(request: RequestModel):
+async def var(request: RequestModel):
     return await polymoment_handle.remote(request=request.dict(), method='var')
 
 
 @app.post("/skew/", response_model=ResponseModel)
-async def get_moment(request: RequestModel):
+async def skew(request: RequestModel):
     return await polymoment_handle.remote(request=request.dict(), method='skew')
 
 
 @app.post("/kurt/", response_model=ResponseModel)
-async def get_moment(request: RequestModel):
+async def kurt(request: RequestModel):
     return await polymoment_handle.remote(request=request.dict(), method='kurt')

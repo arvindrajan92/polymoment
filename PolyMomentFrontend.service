@@ -1,0 +1,12 @@
+[Unit]
+Description=Streamlit instance to serve Polymoment frontend
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/polymoment
+Environment="PATH=/home/ubuntu/miniconda3/envs/polymoment/bin"
+ExecStart=/home/ubuntu/miniconda3/envs/polymoment/bin/streamlit run main_frontend.py
+
+[Install]
+WantedBy=multi-user.target
